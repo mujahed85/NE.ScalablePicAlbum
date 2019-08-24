@@ -1,17 +1,3 @@
-# Copyright 2017 Google, Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
 This main python file contains the backend logic of the website, including
 the reception of Cloud Pub/Sub messages and communication with Google
@@ -32,10 +18,10 @@ from google.appengine.ext import blobstore
 from google.appengine.ext import ndb
 import googleapiclient.discovery
 
-# Constants. Note: Change THUMBNAIL_BUCKET and PHOTO_BUCKET to
+# Constants. Note: Change OUTPUT_BUCKET and INPUT_BUCKET to
 # be applicable to your project.
-THUMBNAIL_BUCKET = 'bkt_scalablethumbnail_output'
-PHOTO_BUCKET = 'bkt_scalablephoto_input'
+OUTPUT_BUCKET = 'bkt_scalablethumbnail_output'
+INPUT_BUCKET = 'bkt_scalablephoto_input'
 NUM_NOTIFICATIONS_TO_DISPLAY = 50
 MAX_LABELS = 5
 
@@ -59,7 +45,7 @@ class Notification(ndb.Model):
     generation = ndb.StringProperty()
 
 
-class ThumbnailReference(ndb.Model):
+class AudioReference(ndb.Model):
     """Describes a ThumbnailReference, which holds information about a given
     thumbnail (not the thumbnail itself).
 
@@ -91,14 +77,14 @@ class PhotosHandler(webapp2.RequestHandler):
     """All photos page: displays thumbnails of all uploaded photos."""
     def get(self):
         # Get thumbnail references from datastore in reverse date order.
-        thumbnail_references = ThumbnailReference.query().order(
-            -ThumbnailReference.date).fetch()
+        audio_references = AudioReference.query().order(
+            -AudioReference.date).fetch()
         # Build dictionary of img_url of thumbnail to thumbnail_references.
         thumbnails = collections.OrderedDict()
-        for thumbnail_reference in thumbnail_references:
+        for audio_reference in audio_references:
             img_url = get_thumbnail_serving_url(
-                thumbnail_reference.thumbnail_key)
-            thumbnails[img_url] = thumbnail_reference
+                audio_reference.thumbnail_key)
+            thumbnails[img_url] = audio_reference
         template_values = {'thumbnails': thumbnails}
         template = jinja_environment.get_template('photos.html')
         self.response.write(template.render(template_values))
@@ -110,8 +96,8 @@ class SearchHandler(webapp2.RequestHandler):
     def get(self):
         # Get search_term entered by user.
         search_term = self.request.get('search-term').lower()
-        references = ThumbnailReference.query().order(
-            -ThumbnailReference.date).fetch()
+        references = AudioReference.query().order(
+            -AudioReference.date).fetch()
         # Build dictionary of img_url of thumbnails to
         # thumbnail_references that have the given label.
         thumbnails = collections.OrderedDict()
@@ -184,14 +170,14 @@ class ReceiveMessage(webapp2.RequestHandler):
             thumbnail = create_thumbnail(photo_name)
             store_thumbnail_in_gcs(thumbnail_key, thumbnail)
             original_photo = get_original_url(photo_name, generation_number)
-            uri = 'gs://{}/{}'.format(PHOTO_BUCKET, photo_name)
+            uri = 'gs://{}/{}'.format(INPUT_BUCKET, photo_name)
             labels = get_labels(uri, photo_name)
-            thumbnail_reference = ThumbnailReference(
+            audio_reference = AudioReference(
                 thumbnail_name=photo_name,
                 thumbnail_key=thumbnail_key,
                 labels=list(labels),
                 original_photo=original_photo)
-            thumbnail_reference.put()
+            audio_reference.put()
 
         # For delete/archive events: delete the thumbnail from Cloud Storage
         # and delete the ThumbnailReference from Cloud Datastore.
@@ -232,7 +218,7 @@ def create_notification(photo_name,
 # Returns serving url for a given thumbnail, specified
 # by the photo_name parameter.
 def get_thumbnail_serving_url(photo_name):
-    filename = '/gs/{}/{}'.format(THUMBNAIL_BUCKET, photo_name)
+    filename = '/gs/{}/{}'.format(OUTPUT_BUCKET, photo_name)
     blob_key = blobstore.create_gs_key(filename)
     return images.get_serving_url(blob_key)
 
@@ -241,7 +227,7 @@ def get_thumbnail_serving_url(photo_name):
 def get_original_url(photo_name, generation):
     original_photo = 'https://storage.googleapis.com/' \
         '{}/{}?generation={}'.format(
-            PHOTO_BUCKET,
+            INPUT_BUCKET,
             photo_name,
             generation)
     return original_photo
@@ -249,7 +235,7 @@ def get_original_url(photo_name, generation):
 
 # Shrinks specified photo to thumbnail size and returns resulting thumbnail.
 def create_thumbnail(photo_name):
-    filename = '/gs/{}/{}'.format(PHOTO_BUCKET, photo_name)
+    filename = '/gs/{}/{}'.format(INPUT_BUCKET, photo_name)
     image = images.Image(filename=filename)
     image.resize(width=180, height=200)
     return image.execute_transforms(output_encoding=images.JPEG)
@@ -261,7 +247,7 @@ def store_thumbnail_in_gcs(thumbnail_key, thumbnail):
     write_retry_params = cloudstorage.RetryParams(
         backoff_factor=1.1,
         max_retry_period=15)
-    filename = '/{}/{}'.format(THUMBNAIL_BUCKET, thumbnail_key)
+    filename = '/{}/{}'.format(OUTPUT_BUCKET, thumbnail_key)
     with cloudstorage.open(
               filename, 'w', content_type='image/jpeg',
               retry_params=write_retry_params) as filehandle:
@@ -271,14 +257,14 @@ def store_thumbnail_in_gcs(thumbnail_key, thumbnail):
 # Deletes thumbnail from Cloud Storage thumbnail bucket and deletes
 # the ThumbnailReference from Cloud Datastore.
 def delete_thumbnail(thumbnail_key):
-    filename = '/gs/{}/{}'.format(THUMBNAIL_BUCKET, thumbnail_key)
+    filename = '/gs/{}/{}'.format(OUTPUT_BUCKET, thumbnail_key)
     blob_key = blobstore.create_gs_key(filename)
     images.delete_serving_url(blob_key)
-    thumbnail_reference = ThumbnailReference.query(
-        ThumbnailReference.thumbnail_key == thumbnail_key).get()
-    thumbnail_reference.key.delete()
+    audio_reference = AudioReference.query(
+        AudioReference.thumbnail_key == thumbnail_key).get()
+    audio_reference.key.delete()
 
-    filename = '/{}/{}'.format(THUMBNAIL_BUCKET, thumbnail_key)
+    filename = '/{}/{}'.format(OUTPUT_BUCKET, thumbnail_key)
     cloudstorage.delete(filename)
 
 
