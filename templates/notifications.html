@@ -21,7 +21,10 @@
 
     {% for notification in notifications %}
     <ul class="notification">
-      <li><p><small style="font-size:12px;"> {{notification.date.strftime('%B %d %Y %I:%M')}} UTC:  </small>{{notification.message}}</p></li>
+      <li><p>
+        <small style="font-size:12px;"> {{notification.date.strftime('%B %d %Y %I:%M')}} UTC:  </small>
+        {{notification.message}}
+      </p></li>
     </ul>
     {% endfor %}
 

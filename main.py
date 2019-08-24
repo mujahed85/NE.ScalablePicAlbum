@@ -34,8 +34,8 @@ import googleapiclient.discovery
 
 # Constants. Note: Change THUMBNAIL_BUCKET and PHOTO_BUCKET to
 # be applicable to your project.
-THUMBNAIL_BUCKET = 'your-cloud-storage-thumbnail-bucket-name'
-PHOTO_BUCKET = 'your-cloud-storage-photo-bucket-name'
+THUMBNAIL_BUCKET = 'bkt_scalablethumbnail_output'
+PHOTO_BUCKET = 'bkt_scalablephoto_input'
 NUM_NOTIFICATIONS_TO_DISPLAY = 50
 MAX_LABELS = 5
 
@@ -293,7 +293,7 @@ def get_labels(uri, photo_name):
     labels.add(photo_name_label)
 
     service_request = service.images().annotate(body={
-        'requests': [{
+        'request/_ah/push-handlers/receive_messages': [{
             'image': {
                 'source': {
                     'imageUri': uri
@@ -330,5 +330,5 @@ app = webapp2.WSGIApplication([
     ('/', MainHandler),
     ('/photos', PhotosHandler),
     ('/search', SearchHandler),
-    ('/_ah/push-handlers/receive_message', ReceiveMessage)
+    ('', ReceiveMessage)
 ], debug=True)

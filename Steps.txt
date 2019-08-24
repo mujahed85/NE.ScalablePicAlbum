@@ -1,0 +1,23 @@
+gcloud config set project ne-scalablemedia
+gcloud app regions list
+gcloud app create --region northamerica-northeast1
+bucket name: 
+bkt_scalablephoto_input
+bkt_scalablethumbnail_output
+topic name:  bkt_scalablephoto_input
+subscription name: sub-scalablephoto
+Subscription ID: projects/ne-scalablemedia/subscriptions/sub-scalablephoto
+
+notification command:
+gsutil notification create -f json gs://bkt_scalablephoto_input
+
+git clone https://github.com/mujahed85/ne.ScalablePicAlbum.git
+cd ne.ScalablePicAlbum
+virtualenv env1
+env1\Scripts\activate.bat
+mkdir lib
+pip install -t lib -r requirements.txt
+set path=%path%;"C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin"
+python "C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin\dev_appserver.py" .
+	or
+python dev_appserver.py .
