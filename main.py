@@ -330,5 +330,5 @@ app = webapp2.WSGIApplication([
     ('/', MainHandler),
     ('/photos', PhotosHandler),
     ('/search', SearchHandler),
-    ('', ReceiveMessage)
+    ('/_ah/push-handlers/receive_message', ReceiveMessage)
 ], debug=True)
